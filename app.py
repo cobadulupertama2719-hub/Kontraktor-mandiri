@@ -1,22 +1,26 @@
 # app.py - ARKI ESTIMATOR PRO (Streamlit Version)
-# Simpan file ini dengan nama app.py
 
 import streamlit as st
 import math
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from datetime import datetime
 import json
 
-# ==================== KONFIGURASI ====================
+# Try-catch untuk matplotlib (fallback jika tidak terinstall)
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+
 st.set_page_config(
     page_title="ARKI ESTIMATOR PRO",
     page_icon="🏗️",
     layout="wide"
 )
 
-# ==================== CSS CUSTOM ====================
+# CSS
 st.markdown("""
 <style>
     .main-header {
@@ -148,7 +152,7 @@ def get_layout(panjang, lebar, kamar, km, ruang_tamu, dapur, garasi):
     y = 0.5
     
     if kamar > 0:
-        lebar_kt = (panjang - 1) / kamar
+        lebar_kt = (panjang - 1) / kamar if kamar > 0 else 0
         for i in range(1, kamar + 1):
             layout.append({'nama': f'KT {i}', 'x': 0.5 + (i-1)*lebar_kt, 'y': y, 'w': lebar_kt, 'h': 3})
     
@@ -262,7 +266,7 @@ komponen_struktur = {
     'pasir': round(total_beton * 0.65, 2),
     'split': round(total_beton * 0.85, 2),
     'besi_kg': round(total_beton * 120, 1),
-    'besi_batang': math.ceil((total_beton * 120) / (12 * (13*13/162)))
+    'besi_batang': math.ceil((total_beton * 120) / (12 * (13*13/162))) if total_beton > 0 else 0
 }
 
 # KOMPONEN 5: BEKISTING
@@ -288,31 +292,31 @@ genteng = math.ceil(luas_atap * genteng_per_m2[jenis_atap])
 if rangka_atap == 'baja':
     komponen_rangka = {
         'jenis': 'Baja Ringan',
-        'kanal_c': math.ceil(luas_atap * 4.5),
-        'reng': math.ceil(luas_atap * 2.5),
-        'sekrup': math.ceil(luas_atap * 12)
+        'kanal_c': math.ceil(luas_atap * 4.5) if luas_atap > 0 else 0,
+        'reng': math.ceil(luas_atap * 2.5) if luas_atap > 0 else 0,
+        'sekrup': math.ceil(luas_atap * 12) if luas_atap > 0 else 0
     }
 else:
     komponen_rangka = {
         'jenis': 'Kayu',
-        'kuda2': math.ceil(panjang / 1.5) * 4,
-        'gording': math.ceil(panjang * 3),
-        'reng': math.ceil(luas_atap * 1.5)
+        'kuda2': math.ceil(panjang / 1.5) * 4 if panjang > 0 else 0,
+        'gording': math.ceil(panjang * 3) if panjang > 0 else 0,
+        'reng': math.ceil(luas_atap * 1.5) if luas_atap > 0 else 0
     }
 
 # KOMPONEN 10: PLAFON
 komponen_plafon = {
-    'gypsum': math.ceil(luas_bangunan * 0.35),
-    'hollow': math.ceil(luas_bangunan * 0.8),
-    'list': math.ceil(keliling * 1.2)
+    'gypsum': math.ceil(luas_bangunan * 0.35) if luas_bangunan > 0 else 0,
+    'hollow': math.ceil(luas_bangunan * 0.8) if luas_bangunan > 0 else 0,
+    'list': math.ceil(keliling * 1.2) if keliling > 0 else 0
 }
 
 # KOMPONEN 11: KERAMIK
 komponen_keramik = {
-    'lantai': math.ceil(luas_bangunan * 1.05),
+    'lantai': math.ceil(luas_bangunan * 1.05) if luas_bangunan > 0 else 0,
     'dinding_km': km * 6,
-    'semen': math.ceil((luas_bangunan + km*6) * 0.3),
-    'pasir': round((luas_bangunan + km*6) * 0.03, 2)
+    'semen': math.ceil((luas_bangunan + km*6) * 0.3) if luas_bangunan > 0 else 0,
+    'pasir': round((luas_bangunan + km*6) * 0.03, 2) if luas_bangunan > 0 else 0
 }
 
 # KOMPONEN 12: LISTRIK
@@ -328,16 +332,16 @@ komponen_listrik = {
 komponen_km = {'closet': km, 'pipa': km * 8, 'wastafel': km}
 komponen_dapur = {'kitchen_set': 1 if dapur > 0 else 0}
 komponen_cat = {
-    'tembok': math.ceil(dinding['luas_bersih'] * 0.12),
-    'plafon': math.ceil(luas_bangunan * 0.1),
-    'total': math.ceil((dinding['luas_bersih'] * 0.12) + (luas_bangunan * 0.1))
+    'tembok': math.ceil(dinding['luas_bersih'] * 0.12) if dinding['luas_bersih'] > 0 else 0,
+    'plafon': math.ceil(luas_bangunan * 0.1) if luas_bangunan > 0 else 0,
+    'total': math.ceil((dinding['luas_bersih'] * 0.12) + (luas_bangunan * 0.1)) if dinding['luas_bersih'] > 0 else 0
 }
 komponen_tenaga = {
-    'tukang': max(2, math.ceil(luas_total / 25)),
-    'kenek': math.ceil(max(2, math.ceil(luas_total / 25)) * 1.2),
-    'hari': max(25, math.ceil(luas_total / 3)),
+    'tukang': max(2, math.ceil(luas_total / 25)) if luas_total > 0 else 2,
+    'kenek': math.ceil(max(2, math.ceil(luas_total / 25)) * 1.2) if luas_total > 0 else 2,
+    'hari': max(25, math.ceil(luas_total / 3)) if luas_total > 0 else 25,
     'biaya': (max(2, math.ceil(luas_total / 25)) * upah_tukang + 
-              math.ceil(max(2, math.ceil(luas_total / 25)) * 1.2) * upah_kenek) * max(25, math.ceil(luas_total / 3))
+              math.ceil(max(2, math.ceil(luas_total / 25)) * 1.2) * upah_kenek) * max(25, math.ceil(luas_total / 3)) if luas_total > 0 else 0
 }
 
 # TOTAL REKAP
@@ -454,37 +458,52 @@ with tab1:
 
 with tab2:
     st.markdown("## 🏠 DENAH RUMAH")
-    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-    ax.set_xlim(0, panjang)
-    ax.set_ylim(0, lebar)
-    ax.set_facecolor('#f8fafc')
-    warna = ['#fcd34d', '#86efac', '#67e8f9', '#fde047', '#c4b5fd', '#fdba74']
-    for i, r in enumerate(layout):
-        rect = patches.Rectangle((r['x'], r['y']), r['w'], r['h'], 
-                                  linewidth=2, edgecolor='#1e293b', 
-                                  facecolor=warna[i % len(warna)], alpha=0.8)
-        ax.add_patch(rect)
-        ax.text(r['x'] + r['w']/2, r['y'] + r['h']/2, r['nama'], 
-                ha='center', va='center', fontsize=9, fontweight='bold')
-    ax.set_xlabel("Panjang (m)")
-    ax.set_ylabel("Lebar (m)")
-    ax.set_title(f"Denah Rumah ({panjang}m x {lebar}m)")
-    ax.grid(True, linestyle='--', alpha=0.3)
-    st.pyplot(fig)
+    
+    if MATPLOTLIB_AVAILABLE:
+        try:
+            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+            ax.set_xlim(0, max(panjang, 1))
+            ax.set_ylim(0, max(lebar, 1))
+            ax.set_facecolor('#f8fafc')
+            warna = ['#fcd34d', '#86efac', '#67e8f9', '#fde047', '#c4b5fd', '#fdba74']
+            for i, r in enumerate(layout):
+                rect = patches.Rectangle((r['x'], r['y']), r['w'], r['h'], 
+                                          linewidth=2, edgecolor='#1e293b', 
+                                          facecolor=warna[i % len(warna)], alpha=0.8)
+                ax.add_patch(rect)
+                ax.text(r['x'] + r['w']/2, r['y'] + r['h']/2, r['nama'], 
+                        ha='center', va='center', fontsize=9, fontweight='bold')
+            ax.set_xlabel("Panjang (m)")
+            ax.set_ylabel("Lebar (m)")
+            ax.set_title(f"Denah Rumah ({panjang}m x {lebar}m)")
+            ax.grid(True, linestyle='--', alpha=0.3)
+            st.pyplot(fig)
+        except Exception as e:
+            st.warning(f"Gagal menampilkan denah: {str(e)}")
+    else:
+        st.info("📐 Install matplotlib untuk melihat denah: `pip install matplotlib`")
+        # Tampilkan tabel layout sebagai alternatif
+        st.markdown("### 📋 Data Layout Ruangan")
+        df_layout = pd.DataFrame(layout)
+        st.dataframe(df_layout, use_container_width=True)
 
 with tab3:
     st.markdown("## 📊 RINGKASAN")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Semen", f"{total_semen} sak")
-        st.metric("Pasir", f"{komponen_pondasi['pasir'] + komponen_struktur['pasir'] + cakar['pasir_m3'] + dinding['pasir_pasang'] + dinding['pasir_plester'] + komponen_keramik['pasir']:.2f} m³")
-        st.metric("Split", f"{komponen_struktur['split'] + cakar['split_m3']:.2f} m³")
+        total_pasir = komponen_pondasi['pasir'] + komponen_struktur['pasir'] + cakar['pasir_m3'] + dinding['pasir_pasang'] + dinding['pasir_plester'] + komponen_keramik['pasir']
+        st.metric("Pasir", f"{total_pasir:.2f} m³")
+        total_split = komponen_struktur['split'] + cakar['split_m3']
+        st.metric("Split", f"{total_split:.2f} m³")
     with col2:
-        st.metric("Besi", f"{komponen_struktur['besi_kg'] + cakar['besi_kg']:.1f} kg")
+        total_besi = komponen_struktur['besi_kg'] + cakar['besi_kg']
+        st.metric("Besi", f"{total_besi:.1f} kg")
         st.metric("Bata", f"{dinding['bata']:,} pcs")
         st.metric("Genteng", f"{genteng:,} pcs")
     with col3:
-        st.metric("Keramik", f"{komponen_keramik['lantai'] + komponen_keramik['dinding_km']} m²")
+        total_keramik = komponen_keramik['lantai'] + komponen_keramik['dinding_km']
+        st.metric("Keramik", f"{total_keramik} m²")
         st.metric("Closet", f"{komponen_km['closet']} buah")
         st.metric("Wastafel", f"{komponen_km['wastafel']} buah")
     
@@ -509,6 +528,11 @@ with tab3:
 with tab4:
     st.markdown("## 💾 EXPORT LAPORAN")
     
+    total_pasir = komponen_pondasi['pasir'] + komponen_struktur['pasir'] + cakar['pasir_m3'] + dinding['pasir_pasang'] + dinding['pasir_plester'] + komponen_keramik['pasir']
+    total_split = komponen_struktur['split'] + cakar['split_m3']
+    total_besi = komponen_struktur['besi_kg'] + cakar['besi_kg']
+    total_keramik = komponen_keramik['lantai'] + komponen_keramik['dinding_km']
+    
     laporan_txt = f"""
 ARKI ESTIMATOR PRO - LAPORAN PERHITUNGAN
 ========================================
@@ -523,12 +547,12 @@ DATA BANGUNAN:
 
 HASIL PERHITUNGAN:
 - Total Semen: {total_semen} sak
-- Total Pasir: {komponen_pondasi['pasir'] + komponen_struktur['pasir'] + cakar['pasir_m3'] + dinding['pasir_pasang'] + dinding['pasir_plester'] + komponen_keramik['pasir']:.2f} m³
-- Total Split: {komponen_struktur['split'] + cakar['split_m3']:.2f} m³
-- Total Besi: {komponen_struktur['besi_kg'] + cakar['besi_kg']:.1f} kg
+- Total Pasir: {total_pasir:.2f} m³
+- Total Split: {total_split:.2f} m³
+- Total Besi: {total_besi:.1f} kg
 - Total Bata: {dinding['bata']:,} pcs
 - Total Genteng: {genteng:,} pcs
-- Total Keramik: {komponen_keramik['lantai'] + komponen_keramik['dinding_km']} m²
+- Total Keramik: {total_keramik} m²
 
 TOTAL RAB: Rp {total_biaya:,.0f}
     """
